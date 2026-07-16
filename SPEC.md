@@ -1,4 +1,5 @@
 # Meta & Google Ads → HubSpot Attribution Middleware
+
 ### Technical specification — Phase 1 (attribution fix)
 
 ## 1. Problem statement
@@ -60,6 +61,7 @@ regardless of which side gets there first.
 ## 3. Components
 
 ### 3.1 Meta webhook listener (`/app/api/webhooks/meta`)
+
 - Verifies Meta's webhook subscription (GET challenge) and validates the
   `X-Hub-Signature-256` header on incoming events (POST)
 - Parses `messaging` events from the payload
@@ -70,6 +72,7 @@ regardless of which side gets there first.
   the ad name/campaign, and call the HubSpot upsert function
 
 ### 3.2 Detection (`/lib/detect.js`)
+
 - Regex-based phone number extraction, tunable for local number formats
 - Regex-based email extraction
 - **This will not be 100% reliable** — unusual formats, numbers given by
@@ -79,10 +82,12 @@ regardless of which side gets there first.
   misses turn out to be frequent in testing).
 
 ### 3.3 Meta ad resolution (`/lib/meta.js`)
+
 - Given an `ad_id` from a referral payload, calls the Graph Marketing API to
   resolve the ad name, ad set, and campaign name for storage in HubSpot
 
 ### 3.4 Temporary referral store (`/lib/store.js`)
+
 - Serverless functions are stateless between invocations — the mapping of
   "this PSID saw this ad" must be persisted somewhere between the first
   message and whenever the phone number eventually appears (which, per the
@@ -92,6 +97,7 @@ regardless of which side gets there first.
   from the function. Do not ship with the in-memory fallback.
 
 ### 3.5 HubSpot upsert (`/lib/hubspot.js`)
+
 - Searches HubSpot contacts by phone number
 - If found → updates only the attribution property (leaves all other contact
   data untouched)
@@ -126,8 +132,7 @@ META_APP_SECRET=              # from the Meta App dashboard, used to validate si
 META_PAGE_ACCESS_TOKEN=       # long-lived Page access token
 HUBSPOT_PRIVATE_APP_TOKEN=    # HubSpot private app token with crm.objects.contacts.write/read scopes
 HUBSPOT_ATTRIBUTION_PROPERTY=true_marketing_source
-KV_REST_API_URL=              # if using Vercel KV
-KV_REST_API_TOKEN=
+
 ```
 
 ## 6. Testing & validation plan
