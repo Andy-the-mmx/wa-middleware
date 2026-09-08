@@ -20,6 +20,13 @@ const {
   deletePendingReferral,
 } = require("../../../../lib/store");
 const { upsertContactAttribution } = require("../../../../lib/hubspot");
+const {
+  START_PAYLOAD,
+  isStartCommand,
+  startLeadFlow,
+  handleLeadFlowMessage,
+} = require("../../../../lib/leadflow");
+const { sendQuickReplies } = require("../../../../lib/send");
 
 // --- Verification handshake -------------------------------------------------
 
@@ -67,20 +74,45 @@ async function handleMessagingEvent(event) {
   const psid = event.sender?.id;
   if (!psid) return;
 
-  // Case 1: conversation just started from an ad click.
-  const referral = event.referral || event.message?.referral;
+  // Ignore echoes of our own outbound messages (delivered if the
+  // message_echoes field is ever subscribed) — otherwise the bot's own
+  // prompts would be fed back through the flow.
+  if (event.message?.is_echo) return;
+
+  // Capture the ad referral wherever it appears: standalone event, attached
+  // to the first message, or attached to a postback (ads that open with an
+  // ice breaker / button tap deliver it there).
+  const referral =
+    event.referral || event.message?.referral || event.postback?.referral;
   if (referral?.ad_id) {
     await savePendingReferral(psid, {
       adId: referral.ad_id,
       startedAt: Date.now(),
     });
+    // No return — the same event may also carry a message or button press.
+  }
+
+  // Get Started button (Messenger) — greet and offer the capture flow.
+  if (event.postback?.payload === "GET_STARTED") {
+    await sendQuickReplies(psid, "Hi! Thanks for reaching out — how can we help?", [
+      { title: "Leave my details", payload: START_PAYLOAD },
+    ]);
     return;
   }
 
-  // Case 2: an ordinary message — check for a phone number or email.
+  // Guided lead capture: a button press or keyword starts the flow...
+  if (isStartCommand(event)) {
+    await startLeadFlow(psid);
+    return;
+  }
+
   const text = event.message?.text;
   if (!text) return;
 
+  // ...and while active, the flow consumes messages (name → email → phone).
+  if (await handleLeadFlowMessage(psid, text)) return;
+
+  // Passive path: watch ordinary messages for a phone number or email.
   const phone = extractPhoneNumber(text);
   const email = extractEmail(text);
   if (!phone && !email) return;

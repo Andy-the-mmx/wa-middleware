@@ -21,9 +21,15 @@ conversation. See `SPEC.md` for the full design and the reasoning behind it.
 
 **Scaffolded:**
 - Webhook verification + signature validation
-- Referral capture and short-term storage (Vercel KV)
+- Referral capture and short-term storage (Upstash Redis)
 - Phone/email detection in message text
 - HubSpot upsert-by-phone logic
+- Guided lead capture: a persistent-menu button / Instagram ice breaker /
+  keyword ("contact", "callback", …) starts a name → email → phone flow that
+  pushes the lead to HubSpot immediately (with ad attribution when a referral
+  is on file), instead of waiting for a number to appear naturally. Run
+  `META_PAGE_ACCESS_TOKEN=<token> node scripts/setup-messenger-profile.js`
+  once to register the buttons. Users can type "cancel" to exit the flow.
 
 **Still needed before production:**
 - Real testing against live Meta webhook traffic — the payload shapes here
